@@ -1,0 +1,44 @@
+﻿@page "/"
+
+<PageTitle>EasyBudget - Home</PageTitle>
+
+<div class="container mt-5">
+    <h1>Welcome to EasyBudget</h1>
+
+    <p class="lead">
+        A simple way to understand and manage your money.
+    </p>
+
+    <hr />
+
+    <h2>Monthly budget preview</h2>
+
+    <div class="mb-3">
+        <label for="budget">Monthly budget (€)</label>
+        <input id="budget"
+               type="number"
+               class="form-control"
+               @bind="monthlyBudget" />
+    </div>
+
+    <div class="mb-3">
+        <label for="spent">Amount spent (€)</label>
+        <input id="spent"
+               type="number"
+               class="form-control"
+               @bind="amountSpent" />
+    </div>
+
+    <h3>Remaining budget</h3>
+    <div class="card p-3 mt-4">
+
+        <p class="fs-4">
+            €@((monthlyBudget - amountSpent).ToString("N2"))
+        </p>
+    </div>
+</div>
+
+@code {
+    private decimal monthlyBudget = 1000m;
+    private decimal amountSpent = 250m;
+}
