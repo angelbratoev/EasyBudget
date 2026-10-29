@@ -16,7 +16,7 @@
 
     <hr />
 
-    <h2>Add a transaction</h2>
+    <h2>@(editingTransactionId.HasValue ? "Edit transaction" : "Add a transaction")</h2>
 
     <EditForm Model="newTransaction"
               OnValidSubmit="HandleValidSubmit">
@@ -65,8 +65,19 @@
         </div>
 
         <button type="submit" class="btn btn-primary" disabled="@isSaving">
-            @(isSaving ? "Saving..." : "Save transaction");
+            @(isSaving ? "Saving..." : 
+                editingTransactionId.HasValue ? "Update transaction" : "Save transaction")
         </button>
+
+        @if (editingTransactionId.HasValue)
+        {
+            <button type="button"
+                    class="btn btn-secondary ms-2"
+            @onclick="CancelEdit"
+            disabled="@isSaving">
+            Cancel
+            </button>
+        }
     </EditForm>
 
     @if (!string.IsNullOrEmpty(statusMessage))
@@ -103,6 +114,7 @@
                         <th>Category</th>
                         <th>Description</th>
                         <th class="text-end">Amount</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -123,6 +135,14 @@
                                     <span>+@transaction.Amount.ToString("N2")</span>
                                 }
                             </td>
+                            <td>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        @onclick="() => EditTransactionAsync(transaction.Id)"
+                                        disabled="@isSaving">
+                                        Edit
+                                </button>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -141,10 +161,52 @@
     private bool saveSucceeded;
     private string statusMessage = string.Empty;
     private string loadError = string.Empty;
+    private int? editingTransactionId;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadTransactionsAsync();
+    }
+
+    private async Task EditTransactionAsync(int id)
+    {
+        try
+        {
+            using var dbContext = DbFactory.CreateDbContext();
+            Transaction transaction = await dbContext.Transactions
+                                                     .AsNoTracking()
+                                                     .FirstOrDefaultAsync(transaction => transaction.Id == id);
+
+            if (transaction == null)
+            {
+                statusMessage = "The selected transaction could not be found.";
+                saveSucceeded = false;
+                return;
+            }
+
+            newTransaction = new Transaction
+            {
+                Amount = transaction.Amount,
+                Category = transaction.Category,
+                Date = transaction.Date,
+                Description = transaction.Description,
+                TransactionType = transaction.TransactionType
+            };
+
+            editingTransactionId = transaction.Id;
+        }
+        catch
+        {
+            statusMessage = "The transaction could not be loaded for editing.";
+            saveSucceeded = false;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        newTransaction = new Transaction();
+        editingTransactionId = null;
+        statusMessage = string.Empty;
     }
 
     private async Task LoadTransactionsAsync()
@@ -180,24 +242,47 @@
 
         try
         {
-            Transaction transactionToSave = new()
-            {
-                Amount = newTransaction.Amount,
-                Category = newTransaction.Category,
-                Date = newTransaction.Date,
-                Description = newTransaction.Description,
-                TransactionType = newTransaction.TransactionType
-            };
-
             using var dbContext = DbFactory.CreateDbContext();
-            dbContext.Transactions.Add(transactionToSave);
-            await dbContext.SaveChangesAsync();
 
-            statusMessage = "Transaction saved successfully.";
-            saveSucceeded = true;
+            if (editingTransactionId.HasValue)
+            {
+                Transaction transactionToEdit = await dbContext.Transactions
+                                                               .FirstOrDefaultAsync(transaction => transaction.Id == editingTransactionId);
 
-            newTransaction = new Transaction();
-            await LoadTransactionsAsync();
+                if (transactionToEdit == null)
+                {
+                    statusMessage = "Transaction does not exist. Please refresh the page.";
+                    saveSucceeded = false;
+                    return;
+                }
+
+                transactionToEdit.Amount = newTransaction.Amount;
+                transactionToEdit.Category = newTransaction.Category.Trim();
+                transactionToEdit.Date = newTransaction.Date;
+                transactionToEdit.Description = string.IsNullOrEmpty(newTransaction.Description) ? null : newTransaction.Description.Trim();
+                transactionToEdit.TransactionType = newTransaction.TransactionType;
+            }
+            else
+            {
+                Transaction transactionToSave = new()
+                    {
+                        Amount = newTransaction.Amount,
+                        Category = newTransaction.Category,
+                        Date = newTransaction.Date,
+                        Description = newTransaction.Description,
+                        TransactionType = newTransaction.TransactionType
+                    };
+
+                dbContext.Transactions.Add(transactionToSave);
+            }
+
+             await dbContext.SaveChangesAsync();
+
+             statusMessage = "Transaction saved successfully.";
+             saveSucceeded = true;
+
+             newTransaction = new Transaction();
+             await LoadTransactionsAsync();
         }
         catch
         {
