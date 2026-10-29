@@ -8,7 +8,7 @@ var databasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFol
 Directory.CreateDirectory(Path.GetDirectoryName(databasePath));
 
 // Add services to the container.
-builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite($"Data Source={databasePath}"));
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options => options.UseSqlite($"Data Source={databasePath}"));
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

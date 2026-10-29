@@ -1,0 +1,212 @@
+﻿@page "/transactions"
+
+@using EasyBudget.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using EasyBudget.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+
+<PageTitle>Transactions - EasyBudget</PageTitle>
+
+<div class="container mt-4">
+    <h1>Transactions</h1>
+    <p class="text-muted">
+        Record your income and expenses.
+    </p>
+
+    <hr />
+
+    <h2>Add a transaction</h2>
+
+    <EditForm Model="newTransaction"
+              OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Transaction Type</label>
+            <InputSelect class="form-select"
+                         @bind-Value="newTransaction.TransactionType">
+                <option value="@TransactionType.Expense">Expense</option>
+                <option value="@TransactionType.Income">Income</option>
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Amount (€)</label>
+            <InputNumber class="form-control"
+                         @bind-Value="newTransaction.Amount"
+                         step="0.01"
+                         min="0.01" />
+            <ValidationMessage For="@(() => newTransaction.Amount)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Category</label>
+            <InputText class="form-control"
+                       @bind-Value="newTransaction.Category" />
+            <ValidationMessage For="@(() => newTransaction.Category)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Date</label>
+            <InputDate 
+                
+                       @bind-Value:format="dd-MM-yyy"
+                       class="form-control"
+                       @bind-Value="newTransaction.Date" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description (optional)</label>
+            <InputTextArea class="form-control"
+                           @bind-Value="newTransaction.Description" />
+            <ValidationMessage For="@(() => newTransaction.Description)" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@isSaving">
+            @(isSaving ? "Saving..." : "Save transaction");
+        </button>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(saveSucceeded ? "alert-success" : "alert-danger") mt-3" role="alert">
+            @statusMessage
+        </div>
+    }
+
+    <hr class="my-4" />
+
+    <h2>Transaction history</h2>
+
+    @if (isLoading)
+    {
+        <p>Loading transactions...</p>
+    }
+    else if (transactions.Count == 0)
+    {
+        <p class="text-muted">No transactions yet. Add your first transaction using the form above.</p>
+    }
+    else if (!string.IsNullOrEmpty(loadError))
+    {
+        <p class="text-danger">@loadError</p>        
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach(Transaction transaction in transactions)
+                    {
+                        <tr @key="transaction.Id">
+                            <td>@transaction.Date.ToString("dd-MM-yyyy")</td>
+                            <td>@transaction.TransactionType</td>
+                            <td>@transaction.Category</td>
+                            <td>@transaction.Description</td>
+                            <td class="text-end">
+                                @if (transaction.TransactionType == TransactionType.Expense)
+                                {
+                                    <span>-@transaction.Amount.ToString("N2")</span>
+                                }
+                                else
+                                {
+                                    <span>+@transaction.Amount.ToString("N2")</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+</div>
+
+@code {
+    private Transaction newTransaction = new();
+
+    private List<Transaction> transactions = new();
+    private bool isLoading;
+    private bool isSaving;
+    private bool saveSucceeded;
+    private string statusMessage = string.Empty;
+    private string loadError = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTransactionsAsync();
+    }
+
+    private async Task LoadTransactionsAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            using var dbContext = DbFactory.CreateDbContext();
+
+            transactions = await dbContext.Transactions
+                                            .AsNoTracking()
+                                            .OrderByDescending(transaction => transaction.Date)
+                                            .ThenByDescending(transaction => transaction.Id)
+                                            .ToListAsync();
+        }
+        catch
+        {
+            loadError = "Transactions could not be loaded. Check the application logs for details.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (isSaving)
+            return;
+
+        isSaving = true;
+
+        try
+        {
+            Transaction transactionToSave = new()
+            {
+                Amount = newTransaction.Amount,
+                Category = newTransaction.Category,
+                Date = newTransaction.Date,
+                Description = newTransaction.Description,
+                TransactionType = newTransaction.TransactionType
+            };
+
+            using var dbContext = DbFactory.CreateDbContext();
+            dbContext.Transactions.Add(transactionToSave);
+            await dbContext.SaveChangesAsync();
+
+            statusMessage = "Transaction saved successfully.";
+            saveSucceeded = true;
+
+            newTransaction = new Transaction();
+            await LoadTransactionsAsync();
+        }
+        catch
+        {
+            statusMessage = "The transaction could not be saved. Check the application logs for details.";
+            saveSucceeded = false;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}
