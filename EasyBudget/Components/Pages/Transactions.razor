@@ -50,9 +50,7 @@
 
         <div class="mb-3">
             <label class="form-label">Date</label>
-            <InputDate 
-                
-                       @bind-Value:format="dd-MM-yyy"
+            <InputDate @bind-Value:format="dd-MM-yyy"
                        class="form-control"
                        @bind-Value="newTransaction.Date" />
         </div>
@@ -65,7 +63,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary" disabled="@isSaving">
-            @(isSaving ? "Saving..." : 
+            @(isSaving ? "Saving..." :
                 editingTransactionId.HasValue ? "Update transaction" : "Save transaction")
         </button>
 
@@ -73,9 +71,9 @@
         {
             <button type="button"
                     class="btn btn-secondary ms-2"
-            @onclick="CancelEdit"
-            disabled="@isSaving">
-            Cancel
+                    @onclick="CancelEdit"
+                    disabled="@isSaving">
+                Cancel
             </button>
         }
     </EditForm>
@@ -101,7 +99,7 @@
     }
     else if (!string.IsNullOrEmpty(loadError))
     {
-        <p class="text-danger">@loadError</p>        
+        <p class="text-danger">@loadError</p>
     }
     else
     {
@@ -118,7 +116,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach(Transaction transaction in transactions)
+                    @foreach (Transaction transaction in transactions)
                     {
                         <tr @key="transaction.Id">
                             <td>@transaction.Date.ToString("dd-MM-yyyy")</td>
@@ -140,13 +138,69 @@
                                         class="btn btn-sm btn-outline-primary"
                                         @onclick="() => EditTransactionAsync(transaction.Id)"
                                         disabled="@isSaving">
-                                        Edit
+                                    Edit
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => ConfirmDelete(transaction.Id)"
+                                        disabled="@isSaving">
+                                    Delete
                                 </button>
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
+
+            @if (pendingDeleteId.HasValue)
+            {
+                <div class="modal d-block"
+                     tabindex="-1"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="deleteModalTitle">
+
+                    <div class="modal-dialog modal-dialog-centered"
+                         role="document">
+
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteModalTitle">
+                                    Delete transaction?
+                                </h5>
+                            </div>
+
+                            <div class="modal-body">
+                                <p>
+                                    Are you sure you want to delete this transaction?
+                                </p>
+                                <p class="text-muted mb-0">
+                                    This action cannot be undone.
+                                </p>
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button"
+                                        class="btn btn-secondary"
+                                        @onclick="CancelDelete"
+                                        disabled="@isSaving">
+                                    Cancel
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-danger"
+                                        @onclick="() => DeleteTransactionAsync(pendingDeleteId.Value)"
+                                        disabled="@isSaving">
+                                    @(isSaving ? "Deleting..." : "Delete")
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-backdrop fade show"></div>
+            }
         </div>
     }
 
@@ -162,10 +216,72 @@
     private string statusMessage = string.Empty;
     private string loadError = string.Empty;
     private int? editingTransactionId;
+    private int? pendingDeleteId;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadTransactionsAsync();
+    }
+
+    private void ConfirmDelete(int id)
+    {
+        statusMessage = string.Empty;
+        pendingDeleteId = id;
+    }
+
+    private void CancelDelete()
+    {
+        pendingDeleteId = null;
+    }
+
+    private async Task DeleteTransactionAsync(int id)
+    {
+        if (isSaving || pendingDeleteId != id)
+        {
+            return;
+        }
+
+        isSaving = true;
+        statusMessage = string.Empty;
+
+        try
+        {
+            using var dbContext = DbFactory.CreateDbContext();
+
+            Transaction transactionToDelete = await dbContext.Transactions
+                                                             .FirstOrDefaultAsync(transaction => transaction.Id == id);
+
+            if (transactionToDelete == null)
+            {
+                statusMessage = "Transaction does not exist. Refresh the page and try again.";
+                saveSucceeded = false;
+                return;
+            }
+
+            dbContext.Transactions.Remove(transactionToDelete);
+            await dbContext.SaveChangesAsync();
+
+            statusMessage = "Transaction deleted successfully.";
+            saveSucceeded = true;
+            pendingDeleteId = null;
+
+            if (editingTransactionId == id)
+            {
+                editingTransactionId = null;
+                newTransaction = new Transaction();
+            }
+
+            await LoadTransactionsAsync();
+        }
+        catch
+        {
+            statusMessage = "The transaction could not be deleted. Check the application logs for details.";
+            saveSucceeded = false;
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
     private async Task EditTransactionAsync(int id)
@@ -265,24 +381,24 @@
             else
             {
                 Transaction transactionToSave = new()
-                    {
-                        Amount = newTransaction.Amount,
-                        Category = newTransaction.Category,
-                        Date = newTransaction.Date,
-                        Description = newTransaction.Description,
-                        TransactionType = newTransaction.TransactionType
-                    };
+                {
+                    Amount = newTransaction.Amount,
+                    Category = newTransaction.Category,
+                    Date = newTransaction.Date,
+                    Description = newTransaction.Description,
+                    TransactionType = newTransaction.TransactionType
+                };
 
                 dbContext.Transactions.Add(transactionToSave);
             }
 
-             await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
 
-             statusMessage = "Transaction saved successfully.";
-             saveSucceeded = true;
+            statusMessage = "Transaction saved successfully.";
+            saveSucceeded = true;
 
-             newTransaction = new Transaction();
-             await LoadTransactionsAsync();
+            newTransaction = new Transaction();
+            await LoadTransactionsAsync();
         }
         catch
         {
