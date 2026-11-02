@@ -1,44 +1,90 @@
 ﻿@page "/"
 
+@using EasyBudget.Data
+@using EasyBudget.Models
+@using EasyBudget.ViewModels
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+
 <PageTitle>EasyBudget - Home</PageTitle>
 
-<div class="container mt-5">
-    <h1>Welcome to EasyBudget</h1>
 
-    <p class="lead">
-        A simple way to understand and manage your money.
-    </p>
-
-    <hr />
-
-    <h2>Monthly budget preview</h2>
-
-    <div class="mb-3">
-        <label for="budget">Monthly budget (€)</label>
-        <input id="budget"
-               type="number"
-               class="form-control"
-               @bind="monthlyBudget" />
-    </div>
-
-    <div class="mb-3">
-        <label for="spent">Amount spent (€)</label>
-        <input id="spent"
-               type="number"
-               class="form-control"
-               @bind="amountSpent" />
-    </div>
-
-    <h3>Remaining budget</h3>
-    <div class="card p-3 mt-4">
-
-        <p class="fs-4">
-            €@((monthlyBudget - amountSpent).ToString("N2"))
+<div class="container">
+    <div class="mb-4">
+        <h1>Dashboard</h1>
+        <p class="text-muted">
+            Your financial overview for @DateTime.Today.ToString("MMMM yyyy")
         </p>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Monthly income</h5>
+                    <h3 class="text-success">
+                        @dashboardSummary.TotalIncome.ToString("C2",
+                            System.Globalization.CultureInfo.GetCultureInfo("en-IE"))
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Monthly expenses</h5>
+                    <h3 class="text-danger">
+                        @dashboardSummary.TotalExpenses.ToString("C2",
+                            System.Globalization.CultureInfo.GetCultureInfo("en-IE"))
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Monthly balance</h5>
+                    <h3 class="@(dashboardSummary.Balance >= 0
+                                                ? "text-success" : "text-danger")">
+                        @dashboardSummary.Balance.ToString("C2",
+                            System.Globalization.CultureInfo.GetCultureInfo("en-IE"))
+                    </h3>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
+
 @code {
-    private decimal monthlyBudget = 1000m;
-    private decimal amountSpent = 250m;
+    private DashboardSummary dashboardSummary = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashBoardSummaryAsync();
+    }
+
+    private async Task LoadDashBoardSummaryAsync()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var startOfMonth = new DateOnly(today.Year, today.Month, 1);
+        var startOfNextMonth = startOfMonth.AddMonths(1);
+
+        await using var dbContext = DbFactory.CreateDbContext();
+
+        var monthlyTransactions = dbContext.Transactions.Where(transaction => transaction.Date >= startOfMonth && transaction.Date < startOfNextMonth);
+
+        dashboardSummary.TotalIncome = await monthlyTransactions
+                                                .Where(transation => transation.TransactionType == TransactionType.Income)
+                                                .SumAsync(transaction => transaction.Amount);
+
+        dashboardSummary.TotalExpenses = await monthlyTransactions
+                                                        .Where(transation => transation.TransactionType == TransactionType.Expense)
+                                                        .SumAsync(transaction => transaction.Amount);
+
+        
+    }
 }
