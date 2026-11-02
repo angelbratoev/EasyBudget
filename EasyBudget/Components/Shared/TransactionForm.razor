@@ -1,0 +1,86 @@
+﻿@using EasyBudget.Models
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+
+<EditForm Model="@Model" OnValidSubmit="@OnValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="type" class="form-label">Transaction type</label>
+        <InputSelect id="type"
+                     class="form-select"
+                     @bind-Value="Model.TransactionType">
+            <option value="@TransactionType.Expense">Expense</option>
+            <option value="@TransactionType.Income">Income</option>
+        </InputSelect>
+    </div>
+
+    <div class="mb-3">
+        <label for="amount" class="form-label">Amount (€)</label>
+        <InputNumber id="amount"
+                     class="form-control"
+                     @bind-Value="Model.Amount"
+                     step="0.01" />
+    </div>
+
+    <div class="mb-3">
+        <label for="category" class="form-label">Category</label>
+        <InputText id="category"
+                   class="form-control"
+                   @bind-Value="Model.Category" />
+    </div>
+
+    <div class="mb-3">
+        <label for="date" class="form-label">Date</label>
+        <InputDate id="date"
+                   class="form-control"
+                   @bind-Value="Model.Date" />
+    </div>
+
+    <div class="mb-3">
+        <label for="description" class="form-label">
+            Description
+        </label>
+        <InputTextArea id="description"
+                       class="form-control"
+                       @bind-Value="Model.Description" />
+    </div>
+
+    <button type="submit"
+            class="btn btn-primary"
+            disabled="@IsSaving">
+        @(IsSaving
+            ? "Saving..."
+            : IsEditing
+                ? "Update transaction"
+                : "Save transaction")
+    </button>
+
+    @if (IsEditing)
+    {
+        <button type="button"
+                class="btn btn-secondary ms-2"
+                @onclick="OnCancel"
+                disabled="@IsSaving">
+            Cancel
+        </button>
+    }
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired]
+    public Transaction Model { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback OnValidSubmit { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public bool IsSaving { get; set; }
+
+    [Parameter]
+    public bool IsEditing { get; set; }
+}

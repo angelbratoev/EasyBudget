@@ -1,6 +1,7 @@
 ﻿@page "/transactions"
 
 @using EasyBudget.Models
+@using EasyBudget.Components.Shared;
 @using Microsoft.AspNetCore.Components.Forms
 @using EasyBudget.Data
 @using Microsoft.EntityFrameworkCore
@@ -18,65 +19,12 @@
 
     <h2>@(editingTransactionId.HasValue ? "Edit transaction" : "Add a transaction")</h2>
 
-    <EditForm Model="newTransaction"
-              OnValidSubmit="HandleValidSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <div class="mb-3">
-            <label class="form-label">Transaction Type</label>
-            <InputSelect class="form-select"
-                         @bind-Value="newTransaction.TransactionType">
-                <option value="@TransactionType.Expense">Expense</option>
-                <option value="@TransactionType.Income">Income</option>
-            </InputSelect>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Amount (€)</label>
-            <InputNumber class="form-control"
-                         @bind-Value="newTransaction.Amount"
-                         step="0.01"
-                         min="0.01" />
-            <ValidationMessage For="@(() => newTransaction.Amount)" />
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Category</label>
-            <InputText class="form-control"
-                       @bind-Value="newTransaction.Category" />
-            <ValidationMessage For="@(() => newTransaction.Category)" />
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Date</label>
-            <InputDate @bind-Value:format="dd-MM-yyy"
-                       class="form-control"
-                       @bind-Value="newTransaction.Date" />
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Description (optional)</label>
-            <InputTextArea class="form-control"
-                           @bind-Value="newTransaction.Description" />
-            <ValidationMessage For="@(() => newTransaction.Description)" />
-        </div>
-
-        <button type="submit" class="btn btn-primary" disabled="@isSaving">
-            @(isSaving ? "Saving..." :
-                editingTransactionId.HasValue ? "Update transaction" : "Save transaction")
-        </button>
-
-        @if (editingTransactionId.HasValue)
-        {
-            <button type="button"
-                    class="btn btn-secondary ms-2"
-                    @onclick="CancelEdit"
-                    disabled="@isSaving">
-                Cancel
-            </button>
-        }
-    </EditForm>
+    <TransactionForm 
+        Model="newTransaction" 
+        OnValidSubmit="HandleValidSubmit"
+        OnCancel="CancelEdit"
+        IsSaving="isSaving"
+        IsEditing="@editingTransactionId.HasValue"/>
 
     @if (!string.IsNullOrEmpty(statusMessage))
     {
