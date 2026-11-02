@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using EasyBudget.Data
 @using Microsoft.EntityFrameworkCore
+
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 
 <PageTitle>Transactions - EasyBudget</PageTitle>
@@ -17,14 +18,11 @@
 
     <hr />
 
-    <h2>@(editingTransactionId.HasValue ? "Edit transaction" : "Add a transaction")</h2>
-
-    <TransactionForm 
-        Model="newTransaction" 
-        OnValidSubmit="HandleValidSubmit"
-        OnCancel="CancelEdit"
-        IsSaving="isSaving"
-        IsEditing="@editingTransactionId.HasValue"/>
+    <button type="button"
+            class="btn btn-sm btn-primary"
+            @onclick="() => BringTransactionForm()">
+        New transaction
+    </button>
 
     @if (!string.IsNullOrEmpty(statusMessage))
     {
@@ -41,13 +39,13 @@
     {
         <p>Loading transactions...</p>
     }
-    else if (transactions.Count == 0)
-    {
-        <p class="text-muted">No transactions yet. Add your first transaction using the form above.</p>
-    }
     else if (!string.IsNullOrEmpty(loadError))
     {
         <p class="text-danger">@loadError</p>
+    }
+    else if (transactions.Count == 0)
+    {
+        <p class="text-muted">No transactions yet. Add your first transaction using the form above.</p>
     }
     else
     {
@@ -101,55 +99,121 @@
                 </tbody>
             </table>
 
-            @if (pendingDeleteId.HasValue)
-            {
-                <div class="modal d-block"
-                     tabindex="-1"
-                     role="dialog"
-                     aria-modal="true"
-                     aria-labelledby="deleteModalTitle">
+        </div>
+    }
 
-                    <div class="modal-dialog modal-dialog-centered"
-                         role="document">
+    @if (pendingDeleteId.HasValue)
+    {
+        <div class="modal d-block"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="deleteModalTitle">
 
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="deleteModalTitle">
-                                    Delete transaction?
-                                </h5>
-                            </div>
+            <div class="modal-dialog modal-dialog-centered"
+                 role="document">
 
-                            <div class="modal-body">
-                                <p>
-                                    Are you sure you want to delete this transaction?
-                                </p>
-                                <p class="text-muted mb-0">
-                                    This action cannot be undone.
-                                </p>
-                            </div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalTitle">
+                            Delete transaction?
+                        </h5>
+                    </div>
 
-                            <div class="modal-footer">
-                                <button type="button"
-                                        class="btn btn-secondary"
-                                        @onclick="CancelDelete"
-                                        disabled="@isSaving">
-                                    Cancel
-                                </button>
+                    <div class="modal-body">
+                        <p>
+                            Are you sure you want to delete this transaction?
+                        </p>
+                        <p class="text-muted mb-0">
+                            This action cannot be undone.
+                        </p>
+                    </div>
 
-                                <button type="button"
-                                        class="btn btn-danger"
-                                        @onclick="() => DeleteTransactionAsync(pendingDeleteId.Value)"
-                                        disabled="@isSaving">
-                                    @(isSaving ? "Deleting..." : "Delete")
-                                </button>
-                            </div>
-                        </div>
+                    <div class="modal-footer">
+                        <button type="button"
+                                class="btn btn-secondary"
+                                @onclick="CancelDelete"
+                                disabled="@isSaving">
+                            Cancel
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-danger"
+                                @onclick="() => DeleteTransactionAsync(pendingDeleteId.Value)"
+                                disabled="@isSaving">
+                            @(isSaving ? "Deleting..." : "Delete")
+                        </button>
                     </div>
                 </div>
-
-                <div class="modal-backdrop fade show"></div>
-            }
+            </div>
         </div>
+
+        <div class="modal-backdrop fade show"></div>
+    }
+
+    @if (showTransactionForm && !editingTransactionId.HasValue)
+    {
+        <div class="modal d-block"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="addModalTitle">
+
+            <div class="modal-dialog modal-dialog-centered"
+                 role="document">
+
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addModalTitle">
+                            Add new transaction
+                        </h5>
+                    </div>
+
+                    <div class="modal-body">
+                        <TransactionForm Model="newTransaction"
+                                         OnValidSubmit="HandleValidSubmit"
+                                         OnCancel="CancelNewTransaction"
+                                         IsSaving="isSaving" />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-backdrop fade show"></div>
+    }
+
+    @if (showTransactionForm && editingTransactionId.HasValue)
+    {
+        <div class="modal d-block"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="editModalTitle">
+
+            <div class="modal-dialog modal-dialog-centered"
+                 role="document">
+
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editModalTitle">
+                            Edit transaction
+                        </h5>
+                    </div>
+
+                    <div class="modal-body">
+                        <TransactionForm Model="newTransaction"
+                                         OnValidSubmit="HandleValidSubmit"
+                                         OnCancel="CancelEdit"
+                                         IsSaving="isSaving"
+                                         IsEditing="editingTransactionId.HasValue" />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-backdrop fade show"></div>
     }
 
 </div>
@@ -161,6 +225,7 @@
     private bool isLoading;
     private bool isSaving;
     private bool saveSucceeded;
+    private bool showTransactionForm;
     private string statusMessage = string.Empty;
     private string loadError = string.Empty;
     private int? editingTransactionId;
@@ -169,6 +234,29 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadTransactionsAsync();
+    }
+
+    private void BringTransactionForm()
+    {
+        newTransaction = new Transaction();
+        statusMessage = string.Empty;
+        editingTransactionId = null;
+        showTransactionForm = true;
+    }
+
+    private void CancelNewTransaction()
+    {
+        newTransaction = new Transaction();
+        showTransactionForm = false;
+        statusMessage = string.Empty;
+    }
+
+    private void CancelEdit()
+    {
+        newTransaction = new Transaction();
+        editingTransactionId = null;
+        statusMessage = string.Empty;
+        showTransactionForm = false;
     }
 
     private void ConfirmDelete(int id)
@@ -258,19 +346,13 @@
             };
 
             editingTransactionId = transaction.Id;
+            showTransactionForm = true;
         }
         catch
         {
             statusMessage = "The transaction could not be loaded for editing.";
             saveSucceeded = false;
         }
-    }
-
-    private void CancelEdit()
-    {
-        newTransaction = new Transaction();
-        editingTransactionId = null;
-        statusMessage = string.Empty;
     }
 
     private async Task LoadTransactionsAsync()
@@ -342,8 +424,10 @@
 
             await dbContext.SaveChangesAsync();
 
-            statusMessage = "Transaction saved successfully.";
+            statusMessage = editingTransactionId.HasValue ? "Transaction updated successfully." : "Transaction saved successfully.";
             saveSucceeded = true;
+            showTransactionForm = false;
+            editingTransactionId = null;
 
             newTransaction = new Transaction();
             await LoadTransactionsAsync();

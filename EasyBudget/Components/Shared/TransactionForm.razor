@@ -47,25 +47,25 @@
                        @bind-Value="Model.Description" />
     </div>
 
-    <button type="submit"
-            class="btn btn-primary"
-            disabled="@IsSaving">
-        @(IsSaving
-            ? "Saving..."
-            : IsEditing
-                ? "Update transaction"
-                : "Save transaction")
-    </button>
+    <div class="d-flex justify-content-between">
+        <button type="submit"
+                class="btn btn-primary"
+                disabled="@IsSaving">
+            @(IsSaving
+                ? "Saving..."
+                : IsEditing
+                    ? "Update transaction"
+                    : "Save transaction")
+        </button>
 
-    @if (IsEditing)
-    {
         <button type="button"
                 class="btn btn-secondary ms-2"
                 @onclick="OnCancel"
                 disabled="@IsSaving">
-            Cancel
+           Cancel
         </button>
-    }
+    </div>
+    
 </EditForm>
 
 @code {
